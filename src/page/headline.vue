@@ -1,24 +1,30 @@
 <template>
   <div class="fillcontain">
     <head-top></head-top>
-    <article v-loading="loading">
+    <article v-loading="loading" @click="popModalBox($event)">
       <h1 class="article-title">{{ content.ArticleTitle }}</h1>
-      <img class="article-cover-image" :src="content.ArticleCoverImageUrl" />
       <div class="author-container">
         <p class="author-name">文章来源：{{ content.AuthorName }}</p>
         <img class="author-head-image" :src="content.AuthorHeadImageUrl" />
       </div>
+      <img class="article-cover-image" :src="content.ArticleCoverImageUrl" />
       <div class="divider"></div>
-      <div class="article-content" v-html="content.ArticleContentWithTags"></div>
+      <div
+        class="article-content"
+        v-html="content.ArticleContentWithTags"
+      ></div>
     </article>
-<el-pagination
-  small
-  layout = "prev, pager, next"
-  :page-size = pagesize
-  :page-count = pagecount
-  :current-page = pageindex
-  @current-change="getInfo()" >
-</el-pagination>
+    <el-pagination
+      small
+      layout="prev, pager, next"
+      :page-size="pagesize"
+      :page-count="pagecount"
+      :current-page="pageindex"
+      @current-change="getInfo"
+      @prev-click="getInfo"
+      @next-click="getInfo"
+    >
+    </el-pagination>
   </div>
 </template>
 <script>
@@ -27,43 +33,50 @@ import { getHeadLine } from "../api/getData.js";
 export default {
   data() {
     return {
-      pagesize:1,//每页条目数
-      pagecount:0,//页数，Ajax请求接收后被改变
-      pageindex: 1, //页数从一开始
+      pagesize: 1, //条目数每页
+      pagecount: 0, //总页数，Ajax请求接收后被改变
+      pageindex: 1, //页数，从一开始
       resReciver: new Map(),
-      content: {},  //初始为空对象，Ajax请求接收后被改变
+      content: {}, //初始为空对象，Ajax请求接收后被改变
       loading: true,
+      Modal:[]
     };
   },
   created() {
-    this.getInfo(this.pageindex)
+    this.getInfo(this.pageindex);
+    this.loading = false;//取消正在加载动画
   },
   components: {
     headTop,
   },
   methods: {
-    getInfo(pageI) {
+    popModalBox($event){
+      console.log($event.target.innerText,'($event.target.innerText)',$event.target.innerHTML,'$event.target.innerHTML')
+      let str = $event.target.innerText;
+        if(!this.isImg($event.target.className)&&!this.isImg($event.target.innerHTML))
+          this.openModal($event.target.innerText);
+      
+    },
+    getInfo(pageI) {//Ajax获取内容，并且将data-src换成src
+      this.pageindex = pageI;
       getHeadLine().then((res) => {
-        console.log('raw Ajax response display',res);
         this.resReciver = res;
-        this.content =  this.resReciver.data.Data[pageI-1];//Ajax获取数组内容，数组下标从0开始，所以减一
-        this.loading = false;
-        this.pagecount = res.data.Data.length;
-        console.log(
-          "this.resReciver",
-          this.resReciver,
-          "this.content",
-          this.content,
-          "pageI",
-          pageI,
-          "this.totalpage",
-          this.totalpage,
-        );
+        this.content = this.resReciver.data.Data[this.pageindex - 1]; //Ajax获取数组内容，数组下标从0开始，所以减一
+        this.content.ArticleContentWithTags = this.datasrckiller(this.content.ArticleContentWithTags);//将标签中的datasrc属性换成data，否则图片显示不出来
+        this.pagecount = this.resReciver.data.Data.length;//总页数显示
       });
     },
-    sayhi(){
-      console.log('hi',this.pageindex)
-    }
+    datasrckiller(str){//把data-src换成src
+      return str.replace("data-src", "src")
+    },
+    isImg(str){//返回布尔：是否图片
+      return /image/.test(str)||/img/.test(str)||/<br>/.test(str)
+    },
+      openModal(val) {//打开模态框 
+        this.$alert(val, "Title", {
+          confirmButtonText: "确定",
+        });
+      },
   },
 };
 </script>
@@ -106,7 +119,7 @@ figcaption {
   border: none;
   font-family: "Microsoft Yahei";
 }
-.el-pagination{
+.el-pagination {
   text-align: center;
 }
 p {
@@ -159,5 +172,8 @@ html {
 span {
   font-size: 16px;
   word-break: break-word;
+}
+span:hover {
+  cursor: pointer;
 }
 </style>
